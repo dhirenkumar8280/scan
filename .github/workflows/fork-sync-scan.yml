@@ -3,7 +3,7 @@ name: Clone and Scan Repositories
 on:
   push:
     paths:
-      - repos.txt
+      - repos.txt  # Trigger only when repos.txt is changed
 
 jobs:
   clone_and_scan:
@@ -12,39 +12,46 @@ jobs:
       - name: Checkout current repository
         uses: actions/checkout@v2
 
-      - name: Install Git and Download TruffleHog v3 Binary
+      - name: Install dependencies
         run: |
+          # Install Git, Curl, and TruffleHog using the install script
           sudo apt-get update
           sudo apt-get install -y git curl
 
-          echo "[+] Downloading TruffleHog v3 Linux binary"
-          curl -sL https://github.com/trufflesecurity/trufflehog/releases/latest/download/trufflehog_amd64.tar.gz -o trufflehog.tar.gz
-
-          echo "[+] Extracting and installing"
-          tar -xzf trufflehog.tar.gz
-          sudo mv trufflehog /usr/local/bin/trufflehog
-          chmod +x /usr/local/bin/trufflehog
+          # Install TruffleHog using the installation script
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Clone repositories from repos.txt
         run: |
           mkdir -p cloned_repos
+          
+          # Loop through repos.txt and clone repositories
+          while read repo_url; do
+            # Skip empty lines or lines starting with #
+            if [[ -z "$repo_url" || "$repo_url" =~ ^# ]]; then
+              continue
+            fi
 
-          while IFS= read -r repo_url || [ -n "$repo_url" ]; do
-            [[ -z "$repo_url" || "$repo_url" =~ ^# ]] && continue
-            repo_name=$(basename "$repo_url" .git)
-            rm -rf "cloned_repos/$repo_name"
+            # Extract the repo name (e.g., kafka-helmsman from https://github.com/owner/kafka-helmsman.git)
+            repo_name=$(basename $repo_url .git)
+
+            # If the repository already exists in cloned_repos, remove it
+            if [ -d "cloned_repos/$repo_name" ]; then
+              echo "[!] Removing existing cloned repo: $repo_name"
+              rm -rf cloned_repos/$repo_name
+            fi
+            
+            # Clone the repository again
             echo "[+] Cloning $repo_name"
-            git clone "$repo_url" "cloned_repos/$repo_name"
+            git clone $repo_url cloned_repos/$repo_name
           done < repos.txt
 
-      - name: Run TruffleHog v3 on Cloned Repositories
+      - name: Run TruffleHog SCA on Cloned Repositories
         run: |
-          echo "[*] TruffleHog version:"
-          trufflehog --version
-
+          # Loop through the cloned repos and scan them
           for dir in cloned_repos/*; do
             if [ -d "$dir" ]; then
-              echo "[+] Scanning $dir"
+              echo "[+] Scanning $dir with TruffleHog"
               trufflehog git --repo_path "$dir" --only-verified || echo "[!] Secrets may exist in $dir"
             fi
           done
