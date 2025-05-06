@@ -1,3 +1,1 @@
 https://github.com/trufflesecurity/test_keys.git
-https://github.com/trufflesecurity/trufflehog.git
-https://github.com/trufflesecurity/homebrew-trufflehog.git
