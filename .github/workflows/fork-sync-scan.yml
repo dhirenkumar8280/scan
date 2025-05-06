@@ -1,50 +1,46 @@
-name: Fork, Sync, and Scan Public Repositories
+name: Clone and Scan Repositories
 
 on:
   push:
     branches:
-      - main  # Trigger on pushes to main branch
-
+      - main  # Trigger when a push happens to the main branch
   schedule:
     - cron: '0 * * * *'  # Runs every hour, adjust as needed
 
 jobs:
-  fork_and_scan:
+  clone_and_scan:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current repository
         uses: actions/checkout@v2
 
-      - name: Fork and Sync Repositories from repos.txt
+      - name: Install dependencies
+        run: |
+          # Install Git and TruffleHog
+          sudo apt-get update
+          sudo apt-get install -y git
+          pip install trufflehog
+
+      - name: Clone repositories from repos.txt
         run: |
           mkdir -p cloned_repos
           
-          # Loop through repos.txt
+          # Loop through repos.txt and clone repositories
           while read repo_url; do
             repo_name=$(basename $repo_url .git)
             
-            # Check if the repo is already forked (via GitHub CLI)
-            if ! gh repo view $repo_name &>/dev/null; then
-              echo "[+] Forking $repo_name"
-              gh repo fork $repo_url --clone=false  # Fork without cloning
-            else
-              echo "[*] $repo_name already forked, checking for sync"
-              # Fetch and sync the fork
-              git clone --bare $repo_url cloned_repos/$repo_name
-              cd cloned_repos/$repo_name
-              git fetch upstream
-              git checkout main
-              git merge upstream/main  # Or master, based on the default branch
-              git push origin main
-              cd ../..
+            # If the repository already exists in cloned_repos, remove it
+            if [ -d "cloned_repos/$repo_name" ]; then
+              echo "[!] Removing existing cloned repo: $repo_name"
+              rm -rf cloned_repos/$repo_name
             fi
+            
+            # Clone the repository again
+            echo "[+] Cloning $repo_name"
+            git clone $repo_url cloned_repos/$repo_name
           done < repos.txt
 
-      - name: Install TruffleHog
-        run: |
-          pip install trufflehog
-
-      - name: Run TruffleHog SCA
+      - name: Run TruffleHog SCA on Cloned Repositories
         run: |
           # Loop through the cloned repos and scan them
           for dir in cloned_repos/*; do
@@ -53,4 +49,3 @@ jobs:
               trufflehog filesystem "$dir" --no-update --fail-criteria high || echo "[!] Secrets may exist in $dir"
             fi
           done
-
