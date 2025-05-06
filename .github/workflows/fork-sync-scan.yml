@@ -50,6 +50,6 @@ jobs:
           for dir in cloned_repos/*; do
             if [ -d "$dir" ]; then
               echo "[+] Scanning $dir with TruffleHog"
-              trufflehog git --repo_path "$dir" --results=verified || echo "[!] Secrets may exist in $dir"
+              trufflehog git --repo_path "$dir" || echo "[!] Secrets may exist in $dir"
             fi
           done
