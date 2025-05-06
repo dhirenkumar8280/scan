@@ -15,14 +15,15 @@ jobs:
       - name: Install Git and Download TruffleHog v3 Binary
         run: |
           sudo apt-get update
-          sudo apt-get install -y git curl unzip
-          
-          echo "[+] Downloading TruffleHog v3 binary"
-          curl -sLO https://github.com/trufflesecurity/trufflehog/releases/latest/download/trufflehog-linux-amd64
+          sudo apt-get install -y git curl
 
-          echo "[+] Making it executable and moving to /usr/local/bin"
-          chmod +x trufflehog-linux-amd64
-          sudo mv trufflehog-linux-amd64 /usr/local/bin/trufflehog
+          echo "[+] Downloading TruffleHog v3 Linux binary"
+          curl -sL https://github.com/trufflesecurity/trufflehog/releases/latest/download/trufflehog_amd64.tar.gz -o trufflehog.tar.gz
+
+          echo "[+] Extracting and installing"
+          tar -xzf trufflehog.tar.gz
+          sudo mv trufflehog /usr/local/bin/trufflehog
+          chmod +x /usr/local/bin/trufflehog
 
       - name: Clone repositories from repos.txt
         run: |
