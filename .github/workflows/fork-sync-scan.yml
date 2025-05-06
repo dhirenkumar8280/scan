@@ -2,10 +2,8 @@ name: Clone and Scan Repositories
 
 on:
   push:
-    branches:
-      - main  # Trigger when a push happens to the main branch
-  schedule:
-    - cron: '0 * * * *'  # Runs every hour, adjust as needed
+    paths:
+      - repos.txt  # Trigger only when repos.txt is changed
 
 jobs:
   clone_and_scan:
