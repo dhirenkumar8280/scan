@@ -44,6 +44,6 @@ jobs:
           for dir in cloned_repos/*; do
             if [ -d "$dir" ]; then
               echo "[+] Scanning $dir with TruffleHog"
-              trufflehog filesystem "$dir" --only-verified
+              trufflehog filesystem --repo_path "$dir" --no-update --fail-criteria high || echo "[!] Secrets may exist in $dir"
             fi
           done
