@@ -1,2 +1,1 @@
 https://github.com/trufflesecurity/test_keys.git
-https://github.com/trufflesecurity/test_keys.git
