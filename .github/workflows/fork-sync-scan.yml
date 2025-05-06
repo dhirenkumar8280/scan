@@ -14,39 +14,44 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # Install Git and TruffleHog
           sudo apt-get update
           sudo apt-get install -y git
-          pip install trufflehog
+          
+          # Ensure pip is updated and install TruffleHog v3+
+          python3 -m pip install --upgrade pip
+          python3 -m pip install "trufflehog>=3.0.0"
 
       - name: Clone repositories from repos.txt
         run: |
           mkdir -p cloned_repos
           
-          # Loop through repos.txt and clone repositories
-          while read repo_url; do
-            # Skip empty lines or lines starting with #
-            if [[ -z "$repo_url" || "$repo_url" =~ ^# ]]; then
-              continue
-            fi
+          echo "[*] Contents of repos.txt:"
+          cat repos.txt
+          
+          while IFS= read -r repo_url || [ -n "$repo_url" ]; do
+            # Skip empty or comment lines
+            [[ -z "$repo_url" || "$repo_url" =~ ^# ]] && continue
 
-            # Extract the repo name (e.g., kafka-helmsman from https://github.com/owner/kafka-helmsman.git)
-            repo_name=$(basename $repo_url .git)
+            repo_name=$(basename "$repo_url" .git)
 
-            # If the repository already exists in cloned_repos, remove it
             if [ -d "cloned_repos/$repo_name" ]; then
               echo "[!] Removing existing cloned repo: $repo_name"
-              rm -rf cloned_repos/$repo_name
+              rm -rf "cloned_repos/$repo_name"
             fi
-            
-            # Clone the repository again
+
             echo "[+] Cloning $repo_name"
-            git clone $repo_url cloned_repos/$repo_name
+            git clone "$repo_url" "cloned_repos/$repo_name"
           done < repos.txt
 
       - name: Run TruffleHog SCA on Cloned Repositories
         run: |
-          # Loop through the cloned repos and scan them
+          set -e
+          echo "[*] TruffleHog version:"
+          trufflehog --version
+
+          echo "[*] Contents of cloned_repos:"
+          ls -la cloned_repos/
+
           for dir in cloned_repos/*; do
             if [ -d "$dir" ]; then
               echo "[+] Scanning $dir with TruffleHog"
