@@ -44,12 +44,12 @@ jobs:
             git clone $repo_url cloned_repos/$repo_name
           done < repos.txt
 
-      - name: Run TruffleHog SCA on Cloned Repositories
+      - name: Run TruffleHog SCA on Cloned Repositories (Verified Only)
         run: |
-          # Loop through the cloned repos and scan them
+          # Loop through the cloned repos and scan them using the filesystem command
           for dir in cloned_repos/*; do
             if [ -d "$dir" ]; then
-              echo "[+] Scanning $dir with TruffleHog"
-              trufflehog --path $dir --only-verified || echo "[!] Secrets may exist in $dir"
+              echo "[+] Scanning $dir with TruffleHog for verified secrets"
+              trufflehog filesystem --path $dir --results=verified || echo "[!] Secrets may exist in $dir"
             fi
           done
