@@ -42,5 +42,5 @@ jobs:
         run: |
           while read repo; do
             echo "Scanning $repo..."
-            trufflehog git "$repo" --include-detectors="all" --json | notify -provider discord-webhook
+            trufflehog git "$repo" --include-detectors="all" | notify
           done < repos.txt
