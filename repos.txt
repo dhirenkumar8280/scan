@@ -15,5 +15,4 @@ https://github.com/Monotype/c2pa-rs
 https://github.com/Monotype/rust-font-tools
 https://github.com/Monotype/c2pa-font-ux-js
 https://github.com/Monotype/opentype.js
-https://github.com/Monotype/c2pa-font-handler
 https://github.com/Monotype/typesense-dashboard
