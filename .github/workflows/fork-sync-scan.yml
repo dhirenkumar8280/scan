@@ -1,35 +1,36 @@
-name: TruffleHog Scan
+name: Secret Scan
 
 on:
   push:
     paths:
       - repos.txt
-  workflow_dispatch:
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Install TruffleHog & Notify
+      - name: Install Latest TruffleHog & Notify
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl tar unzip
+          sudo apt-get install -y curl unzip jq
 
-          # Install TruffleHog
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
-            | sh -s -- -b /usr/local/bin
+          # --- Install latest TruffleHog ---
+          TRUFFLEHOG_VERSION=$(curl -s https://api.github.com/repos/trufflesecurity/trufflehog/releases/latest | jq -r .tag_name)
+          curl -sSfL "https://github.com/trufflesecurity/trufflehog/releases/download/${TRUFFLEHOG_VERSION}/trufflehog_${TRUFFLEHOG_VERSION#v}_linux_amd64.tar.gz" -o trufflehog.tar.gz
+          tar -xzf trufflehog.tar.gz
+          sudo mv trufflehog /usr/local/bin/
+          chmod +x /usr/local/bin/trufflehog
 
-          # Install Notify (latest version)
-          NOTIFY_VERSION=$(curl -s https://api.github.com/repos/projectdiscovery/notify/releases/latest | grep tag_name | cut -d '"' -f 4)
-          curl -sSfL "https://github.com/projectdiscovery/notify/releases/download/${NOTIFY_VERSION}/notify_${NOTIFY_VERSION#v}_linux_amd64.tar.gz" -o notify.tar.gz
-          tar -xvf notify.tar.gz -C /usr/local/bin/ notify
+          # --- Install latest Notify ---
+          NOTIFY_VERSION=$(curl -s https://api.github.com/repos/projectdiscovery/notify/releases/latest | jq -r .tag_name)
+          curl -sSfL "https://github.com/projectdiscovery/notify/releases/download/${NOTIFY_VERSION}/notify_${NOTIFY_VERSION#v}_linux_amd64.zip" -o notify.zip
+          unzip notify.zip -d /usr/local/bin/
           chmod +x /usr/local/bin/notify
 
-          # Configure Notify with your Discord webhook
+          # --- Configure Notify (Discord webhook) ---
           mkdir -p ~/.config/notify
           cat > ~/.config/notify/provider-config.yaml <<EOF
           discord:
@@ -37,9 +38,9 @@ jobs:
               discord_webhook_url: "https://discord.com/api/webhooks/1408044956060352553/pLyDkTHduvYe2nfhFYdFdMqUi1nq7k59jswHHt2PfX7px7MwCo91Mgi5ElVQnoNWJP3D"
           EOF
 
-      - name: Run TruffleHog on repos
+      - name: Run TruffleHog Scan
         run: |
-          while IFS= read -r repo; do
-            echo "🔍 Scanning $repo"
-            trufflehog git $repo --include-detectors="all" --json | notify -provider discord
+          while read repo; do
+            echo "Scanning $repo..."
+            trufflehog git "$repo" --include-detectors="all" --json | notify -provider discord-webhook
           done < repos.txt
