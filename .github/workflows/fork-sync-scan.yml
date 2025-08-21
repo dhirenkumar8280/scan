@@ -1,51 +1,59 @@
-name: Scan Repositories with TruffleHog + Notify
+name: TruffleHog Secret Scan
 
 on:
-  push:
-    paths:
-      - repos.txt
+  workflow_dispatch:
 
 jobs:
-  scan_repos:
+  scan:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout current repository
-        uses: actions/checkout@v2
+      - name: Checkout workflow repo
+        uses: actions/checkout@v4
 
       - name: Install TruffleHog and Notify
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl unzip
+          sudo apt-get install -y curl unzip jq
+
+          # Install Trufflehog
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
             | sh -s -- -b /usr/local/bin
-          curl -sSfL https://github.com/projectdiscovery/notify/releases/download/v0.31.0/notify_0.31.0_linux_amd64.zip \
-            -o notify.zip
+
+          # Install latest Notify
+          LATEST_NOTIFY=$(curl -s https://api.github.com/repos/projectdiscovery/notify/releases/latest \
+            | grep "browser_download_url.*linux_amd64.zip" | cut -d '"' -f 4)
+          curl -sL "$LATEST_NOTIFY" -o notify.zip
           unzip notify.zip -d /usr/local/bin/
           chmod +x /usr/local/bin/notify
 
-      - name: Add notify config
+      - name: Run TruffleHog on repos from repos.txt
         run: |
-          mkdir -p ~/.config/notify
-          cat <<'EOF' > ~/.config/notify/provider-config.yaml
-          discord:
-            - id: "alerts"
-              discord_channel: "secrets-alerts"
-              discord_webhook_url: "https://discord.com/api/webhooks/1408044956060352553/pLyDkTHduvYe2nfhFYdFdMqUi1nq7k59jswHHt2PfX7px7MwCo91Mgi5ElVQnoNWJP3D"
-          EOF
+          mkdir -p results
 
-      - name: Run TruffleHog Git Scan on repos.txt and Notify
-        run: |
-          while read repo_url; do
-            if [[ -z "$repo_url" || "$repo_url" =~ ^# ]]; then
-              continue
-            fi
-
-            echo "[+] Scanning $repo_url with TruffleHog"
-            trufflehog git "$repo_url" --include-detectors="all" --print-avg-detector-time \
-              > result.json 2>&1 || echo "[!] Scan failed for $repo_url"
-
-            if [ -s result.json ]; then
-              echo "[!] Sending findings for $repo_url to Discord"
-              cat result.json | notify -silent -provider discord || true
-            fi
+          while read repo; do
+            [ -z "$repo" ] && continue   # skip empty lines
+            name=$(basename "$repo" .git)
+            echo "[*] Scanning $repo ..."
+            trufflehog git --json "$repo" > results/${name}.json || true
           done < repos.txt
+
+      - name: Send results to Discord
+        run: |
+          WEBHOOK="https://discord.com/api/webhooks/1408044956060352553/pLyDkTHduvYe2nfhFYdFdMqUi1nq7k59jswHHt2PfX7px7MwCo91Mgi5ElVQnoNWJP3D"
+
+          for file in results/*.json; do
+            repo=$(basename "$file" .json)
+            count=$(jq length "$file")
+
+            if [ "$count" -gt 0 ]; then
+              msg=":rotating_light: Secrets found in **$repo** → $count issues"
+            else
+              msg="✅ No secrets in **$repo**"
+            fi
+
+            curl -s -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"content\": \"$msg\"}" \
+              "$WEBHOOK"
+          done
