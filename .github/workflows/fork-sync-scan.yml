@@ -14,46 +14,34 @@ jobs:
       - name: Checkout workflow repo
         uses: actions/checkout@v4
 
-      - name: Install TruffleHog and Notify
+      - name: Install TruffleHog & Notify
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl unzip jq
+          sudo apt-get install -y curl unzip
 
-          # Install Trufflehog
+          # Install TruffleHog
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
             | sh -s -- -b /usr/local/bin
 
-      - name: Run TruffleHog on repos from repos.txt
-        run: |
-          mkdir -p results
+          # Install Notify
+          curl -sSfL https://github.com/projectdiscovery/notify/releases/download/v2.16.1/notify_2.16.1_linux_amd64.zip -o notify.zip
+          unzip notify.zip -d /usr/local/bin/
+          chmod +x /usr/local/bin/notify
 
+          # Create notify config (hardcoded Discord webhook)
+          mkdir -p ~/.config/notify
+          cat > ~/.config/notify/provider-config.yaml <<EOF
+          discord:
+            - id: "discord-webhook"
+              discord_webhook_url: "https://discord.com/api/webhooks/1408044956060352553/pLyDkTHduvYe2nfhFYdFdMqUi1nq7k59jswHHt2PfX7px7MwCo91Mgi5ElVQnoNWJP3D"
+          EOF
+
+      - name: Run TruffleHog and send alerts
+        run: |
           while read repo; do
             [ -z "$repo" ] && continue   # skip empty lines
-            name=$(basename "$repo" .git)
             echo "[*] Scanning $repo ..."
-            trufflehog git --json "$repo" > results/${name}.json || true
+            
+            # Stream findings directly to notify
+            trufflehog git --json "$repo" 2>/dev/null | notify -provider discord-webhook || true
           done < repos.txt
-
-      - name: Send notification if secrets found
-        run: |
-          WEBHOOK="https://discord.com/api/webhooks/1408044956060352553/pLyDkTHduvYe2nfhFYdFdMqUi1nq7k59jswHHt2PfX7px7MwCo91Mgi5ElVQnoNWJP3D"
-
-          found_any=false
-
-          for file in results/*.json; do
-            repo=$(basename "$file" .json)
-            count=$(jq length "$file")
-
-            if [ "$count" -gt 0 ]; then
-              found_any=true
-              msg=":rotating_light: **$count secrets found** in repo: **$repo**"
-              curl -s -H "Content-Type: application/json" \
-                -X POST \
-                -d "{\"content\": \"$msg\"}" \
-                "$WEBHOOK"
-            fi
-          done
-
-          if [ "$found_any" = false ]; then
-            echo "✅ No secrets found in any repo. No notification sent."
-          fi
