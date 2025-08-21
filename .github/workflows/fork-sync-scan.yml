@@ -42,5 +42,5 @@ jobs:
         run: |
           while read repo; do
             echo "Scanning $repo..."
-            trufflehog git "$repo" --include-detectors="all" | notify
+            trufflehog git "$repo" --include-detectors="all" | notify -bulk
           done < repos.txt
