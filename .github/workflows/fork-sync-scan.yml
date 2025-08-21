@@ -1,7 +1,10 @@
 name: TruffleHog Secret Scan
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # manual trigger
+  push:                # auto trigger when repos.txt changes
+    paths:
+      - "repos.txt"
 
 jobs:
   scan:
@@ -20,13 +23,6 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
             | sh -s -- -b /usr/local/bin
 
-          # Install latest Notify
-          LATEST_NOTIFY=$(curl -s https://api.github.com/repos/projectdiscovery/notify/releases/latest \
-            | grep "browser_download_url.*linux_amd64.zip" | cut -d '"' -f 4)
-          curl -sL "$LATEST_NOTIFY" -o notify.zip
-          unzip notify.zip -d /usr/local/bin/
-          chmod +x /usr/local/bin/notify
-
       - name: Run TruffleHog on repos from repos.txt
         run: |
           mkdir -p results
@@ -38,22 +34,26 @@ jobs:
             trufflehog git --json "$repo" > results/${name}.json || true
           done < repos.txt
 
-      - name: Send results to Discord
+      - name: Send notification if secrets found
         run: |
           WEBHOOK="https://discord.com/api/webhooks/1408044956060352553/pLyDkTHduvYe2nfhFYdFdMqUi1nq7k59jswHHt2PfX7px7MwCo91Mgi5ElVQnoNWJP3D"
+
+          found_any=false
 
           for file in results/*.json; do
             repo=$(basename "$file" .json)
             count=$(jq length "$file")
 
             if [ "$count" -gt 0 ]; then
-              msg=":rotating_light: Secrets found in **$repo** → $count issues"
-            else
-              msg="✅ No secrets in **$repo**"
+              found_any=true
+              msg=":rotating_light: **$count secrets found** in repo: **$repo**"
+              curl -s -H "Content-Type: application/json" \
+                -X POST \
+                -d "{\"content\": \"$msg\"}" \
+                "$WEBHOOK"
             fi
-
-            curl -s -H "Content-Type: application/json" \
-              -X POST \
-              -d "{\"content\": \"$msg\"}" \
-              "$WEBHOOK"
           done
+
+          if [ "$found_any" = false ]; then
+            echo "✅ No secrets found in any repo. No notification sent."
+          fi
