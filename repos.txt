@@ -14,7 +14,6 @@ https://github.com/Monotype/google-fonts
 https://github.com/Monotype/c2pa-rs
 https://github.com/Monotype/.github
 https://github.com/Monotype/rust-font-tools
-https://github.com/Monotype/c2pa-js
 https://github.com/Monotype/c2pa-font-ux-js
 https://github.com/Monotype/opentype.js
 https://github.com/Monotype/c2pa-font-handler
