@@ -1,4 +1,4 @@
-name: Clone and Scan Repositories
+name: Scan Repositories with TruffleHog
 
 on:
   push:
@@ -6,44 +6,28 @@ on:
       - repos.txt  # Trigger only when repos.txt is changed
 
 jobs:
-  clone_and_scan:
+  scan_repos:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current repository
         uses: actions/checkout@v2
 
-      - name: Install dependencies
+      - name: Install TruffleHog
         run: |
           sudo apt-get update
-          sudo apt-get install -y git curl
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          sudo apt-get install -y curl
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
+            | sh -s -- -b /usr/local/bin
 
-      - name: Clone repositories from repos.txt
+      - name: Run TruffleHog Git Scan on repos.txt
         run: |
-          mkdir -p cloned_repos
-          
           while read repo_url; do
             # Skip empty lines or comments
             if [[ -z "$repo_url" || "$repo_url" =~ ^# ]]; then
               continue
             fi
-            repo_name=$(basename $repo_url .git)
 
-            # Remove if already cloned
-            if [ -d "cloned_repos/$repo_name" ]; then
-              echo "[!] Removing existing cloned repo: $repo_name"
-              rm -rf "cloned_repos/$repo_name"
-            fi
-
-            echo "[+] Cloning $repo_name"
-            git clone "$repo_url" "cloned_repos/$repo_name"
+            echo "[+] Scanning $repo_url with TruffleHog (all detectors)"
+            trufflehog git "$repo_url" --include-detectors="all" --print-avg-detector-time \
+              || echo "[!] Scan issues in $repo_url"
           done < repos.txt
-
-      - name: Run TruffleHog Scan on Cloned Repositories (All Findings)
-        run: |
-          for dir in cloned_repos/*; do
-            if [ -d "$dir" ]; then
-              echo "[+] Scanning $dir with TruffleHog (all detectors)"
-              trufflehog filesystem "$dir" --include-detectors="all" --print-avg-detector-time || echo "[!] Scan issues in $dir"
-            fi
-          done
