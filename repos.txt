@@ -12,7 +12,6 @@ https://github.com/Monotype/panose
 https://github.com/Monotype/sharp
 https://github.com/Monotype/google-fonts
 https://github.com/Monotype/c2pa-rs
-https://github.com/Monotype/.github
 https://github.com/Monotype/rust-font-tools
 https://github.com/Monotype/c2pa-font-ux-js
 https://github.com/Monotype/opentype.js
