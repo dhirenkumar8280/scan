@@ -380,4 +380,4 @@ https://github.com/resend/backend-esteban-canela
 https://github.com/resend/fullstack-paulo-vinhas
 https://github.com/resend/backend-marcos
 https://github.com/resend/fullstack-cassio
-https://github.com/resend/resend-svelte-kit-example
+
