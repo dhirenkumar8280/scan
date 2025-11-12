@@ -1,9 +1,9 @@
 name: Secret Scan
 
 on:
-  push:
-    paths:
-      - repos.txt
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes
+  workflow_dispatch: 
 
 jobs:
   scan:
@@ -12,17 +12,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Install Latest TruffleHog & Notify
+      - name: Install Notify
         run: |
           sudo apt-get update
           sudo apt-get install -y curl unzip jq
 
-          # --- Install latest TruffleHog ---
-          TRUFFLEHOG_VERSION=$(curl -s https://api.github.com/repos/trufflesecurity/trufflehog/releases/latest | jq -r .tag_name)
-          curl -sSfL "https://github.com/trufflesecurity/trufflehog/releases/download/${TRUFFLEHOG_VERSION}/trufflehog_${TRUFFLEHOG_VERSION#v}_linux_amd64.tar.gz" -o trufflehog.tar.gz
-          tar -xzf trufflehog.tar.gz
-          sudo mv trufflehog /usr/local/bin/
-          chmod +x /usr/local/bin/trufflehog
+  
 
           # --- Install latest Notify ---
           NOTIFY_VERSION=$(curl -s https://api.github.com/repos/projectdiscovery/notify/releases/latest | jq -r .tag_name)
@@ -38,9 +33,59 @@ jobs:
               discord_webhook_url: "https://discord.com/api/webhooks/1408044956060352553/pLyDkTHduvYe2nfhFYdFdMqUi1nq7k59jswHHt2PfX7px7MwCo91Mgi5ElVQnoNWJP3D"
           EOF
 
-      - name: Run TruffleHog Scan
+      - name: Run postman Scan
         run: |
-          while read repo; do
-            echo "Scanning $repo..."
-            trufflehog git "$repo" --only-verified --include-detectors="all" | notify -bulk
-          done < repos.txt
+         curl --path-as-is -s -k --compressed -X $'POST' \
+    -H $'Host: www.postman.com' -H $'Content-Length: 242' -H $'Sec-Ch-Ua-Platform: \"macOS\"' -H $'Sec-Ch-Ua: \"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"' -H $'Sec-Ch-Ua-Mobile: ?0' -H $'Newrelic: eyJ2IjpbMCwxXSwiZCI6eyJ0eSI6IkJyb3dzZXIiLCJhYyI6IjI2NjU5MTgiLCJhcCI6Ijc3MTQzNjc2MiIsImlkIjoiMmEzYWY3ZDQ0OWUxN2VhNCIsInRyIjoiMTQ2ODI4ZTFmZTg5NDFhZDYzMWIwOGEzNzMzZTcxNTYiLCJ0aSI6MTc2Mjg0NDIwNjc0MSwidGsiOiI0MjQxNTAzIn19' -H $'X-Entity-Team-Id: 11440392' -H $'Traceparent: 00-146828e1fe8941ad631b08a3733e7156-2a3af7d449e17ea4-01' -H $'X-App-Version: 11.71.1-251111-0111' -H $'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36' -H $'Content-Type: application/json' -H $'Tracestate: 4241503@nr=0-1-2665918-771436762-2a3af7d449e17ea4----1762844206741' -H $'Accept: */*' -H $'Origin: https://www.postman.com' -H $'Sec-Fetch-Site: same-origin' -H $'Sec-Fetch-Mode: cors' -H $'Sec-Fetch-Dest: empty' -H $'Referer: https://www.postman.com/explore/collections?sort=latest&filter=&page=1' -H $'Accept-Encoding: gzip, deflate, br' -H $'Accept-Language: en-GB,en-US;q=0.9,en;q=0.8' -H $'Priority: u=1, i' \
+    -b $'_hjSessionUser_646199=eyJpZCI6IjgzNWZlZDIxLTg0ZWMtNWJkOS1hYjlmLWYwNzM5NDNjYzAxMyIsImNyZWF0ZWQiOjE3NDc4NTEwMjA4MDAsImV4aXN0aW5nIjp0cnVlfQ==; _ga=GA1.1.641399756.1762317741; ajs_anonymous_id=260fd7ed-018f-4ef7-a45f-5baf6d2110a8; tcm={\"purposes\":{\"Analytics\":true,\"Advertising\":true,\"Functional\":true,\"SaleOfInfo\":true},\"timestamp\":\"2025-11-05T04:42:29.003Z\",\"confirmed\":true,\"prompted\":true,\"updated\":true}; _gcl_au=1.1.1887053323.1762317742; _fbp=fb.1.1762317866272.712595118199089461; rm_asLtEBCh7D4pMetaFgSz={%22$uid%22:%2219a59bcdbf5-2add47a8-354e-41c4-94c2-8528dc9df302%22}; g_state={\"i_l\":0,\"i_ll\":1762770732256,\"i_b\":\"v0tOHh3HnXiacVKfg2bkSnynLy99uFjKFcv0gsjQqnw\"}; _pmt=pmtMTc2Mjc3MDczNTQxMw==|PM.MjAyNS0xMC0wN1QwNDo1Mjo0OS4yODNa; getpostmanlogin=yes; dashboard_beta=yes; _PUB_ID=6d5542320d9aa6000143896c; postman.sid=880a31f3b278a2d7146ff9e8e52a74ca66f444d957137c9e4d88458883345118b08b99cabccc77e6a92191200ce0f2eee6b91381b3cd6a60bbc4ed9265ec41b08ef35f8d2075f6203580ade1da899516812f6a205fd33f009a3bb10d679584e19a7b65ca237864db2f98e1217f8e22625b9e95bc8e261ddb024e3e04e12ecfbacd474f4b6269243799015835ba792b8f7414b6fb2d67cb5ca985979d2c1f770014a4dd521fadc66b8e70dbbbcbb25739601a7498cc9f63d441fdebdec62d977988130cdbe101b4697c486fe12b87e22a1ac03181c5aa2d0ad0f8241379b336894afc25f16943f26a1122089a1c52ee1810211fbeecb0312a80fcb19584c0a852631e6b3f7978ce7926e6b7430e4bff427ed1a195a033480a6439bc170f99bcd166c36c87fffa94b5695fb8399f547d18077df3fd3a4948a6d176fab005f3ecba6d5dcf922425eeb0c5cd081962ad9c775e7ff46fbad30d2a081184fac57b23b2627abad89f63e9cb9518dfac89eae913b1f959437ed57a6bcb4b0efcfe108e87dea8acd61c6b267e7720522d1cc045cc538ebf34474a109899a3f31bfe8c7df381653fe7bec5f2b3943ba0b73eaa2694a1e07fa7ea0870094215b74b70a7caffc2b4511a6637419e9b06695d2f6eee444c0b86008d26ef9961fb3faef9e2fdff; _SERVICE_PUB_ID=6d5542320d9aa6000143896c; analytics_session_id=1762834761009; _rdt_uuid=1762317741960.bf3a0d68-c3cb-4c95-a690-81dcccbff70f; _uetsid=97524860beb511f0a97dd1bc7a4026b6|y66vkf|2|g0x|0|2141; __q_state_hhaW6HiVqGA5oJq1=eyJ1dWlkIjoiY2RkYTU1NTctMTc3Ny00YzQyLWIwMzMtMDI3NDIzMjZkNzgwIiwiY29va2llRG9tYWluIjoicG9zdG1hbi5jb20iLCJtZXNzZW5nZXJFeHBhbmRlZCI6bnVsbCwicHJvbXB0RGlzbWlzc2VkIjpmYWxzZSwiY29udmVyc2F0aW9uSWQiOiIxNzgyMzM5NjgyOTM3NzgyODQ1In0=; analytics_session_id.last_access=1762834845529; _ga_CX7P9K6W67=GS2.1.s1762834758$o3$g1$t1762835257$j58$l0$h0; AMP_MKTG_56d4a7f424=JTdCJTIycmVmZXJyZXIlMjIlM0ElMjJodHRwcyUzQSUyRiUyRmRoaXJlbmxlYXJuaW5nLTc4ODk5MC5wb3N0bWFuLmNvJTJGd29ya3NwYWNlJTJGRGhpcmVuJ3MtV29ya3NwYWNlfjhjNzI1YjY1LTI5ZmMtNGQ4Yy04YTVhLWFlNGM2MzBhNGViZCUyRm92ZXJ2aWV3JTIyJTJDJTIycmVmZXJyaW5nX2RvbWFpbiUyMiUzQSUyMmRoaXJlbmxlYXJuaW5nLTc4ODk5MC5wb3N0bWFuLmNvJTIyJTdE; AMP_56d4a7f424=JTdCJTIyZGV2aWNlSWQlMjIlM0ElMjJiMDlkN2M3OS1mNjZlLTRlODAtYmU2Ny00NDk5YWUyZTQ0NmUlMjIlMkMlMjJ1c2VySWQlMjIlM0ElMjJmNzUxZGIwOC0wOTMzLTQxYmQtOGRhOS01NTRlZTM2MWQzMTMlMjIlMkMlMjJzZXNzaW9uSWQlMjIlM0ExNzYyODQzMTcxOTk1JTJDJTIyb3B0T3V0JTIyJTNBZmFsc2UlMkMlMjJsYXN0RXZlbnRUaW1lJTIyJTNBMTc2Mjg0NDE4NTQ2OCUyQyUyMmxhc3RFdmVudElkJTIyJTNBNjAwMCUyQyUyMnBhZ2VDb3VudGVyJTIyJTNBMjElN0Q=; __cf_bm=l88kBac9zrZbbcEkQCmGNXxbIXglhsrzXT5TEd1bZtA-1762844206-1.0.1.1-d4BixZS0yje8LBWN.a.PInC3PpbVBCs6AQeVW20BdFE2vPjG0bNIStvI6bwZwiinuxfOBdCeN.ntAffRV6zTnNxVzZvzVuhjmzHSTAx0._I; _cfuvid=hMRv1YQ8s7UybVrEbn.MrtXV5MDjuVIOdSjIazKxM08-1762844206275-0.0.1.1-604800000; _pm.store={\"userId\":\"PM.MjAyNS0xMC0wN1QwNDo1Mjo0OS4yODNa\",\"session\":24102,\"traceId\":\"pmMTc2Mjg0MzE2Nzk0OQ==|PM.MjAyNS0xMC0wN1QwNDo1Mjo0OS4yODNa\",\"time\":1762844206433,\"plan\":\"free\",\"polaris\":\"260fd7ed-018f-4ef7-a45f-5baf6d2110a8\"}' \
+    --data-binary $'{\"service\":\"publishing\",\"method\":\"get\",\"path\":\"/v1/api/networkentity?limit=10&type=public&referrer=explore&entityType=collection&flattenAPIVersions=true&category=&sort=latest&page=explore%2Fcollections%3Fsort%3Dlatest%26filter%3D%26page%3D1\"}' \
+    $'https://www.postman.com/_api/ws/proxy' | jq -r '.data[].entityId' > 1.txt
+
+echo "19211818-9a16ce50-564f-4cd9-8eb5-b23235c1e9e0" >> 1.txt
+
+# File containing collection IDs
+COLLECTION_FILE="1.txt"
+EXPORT_DIR="postman_collections"
+OUTPUT_FILE="postman_flat.txt"
+
+mkdir -p "$EXPORT_DIR"
+: > "$OUTPUT_FILE"   # clear output file
+
+# download collections (if you already have them skip this block)
+while read -r COLLECTION_ID; do
+  [[ -z "$COLLECTION_ID" ]] && continue
+  URL="https://www.postman.com/collections/$COLLECTION_ID"
+  OUTPUT="$EXPORT_DIR/${COLLECTION_ID}.json"
+
+  echo "[INFO] Downloading $COLLECTION_ID..."
+  curl -s -L "$URL" -o "$OUTPUT"
+
+  if [[ ! -s "$OUTPUT" ]]; then
+    echo "[WARN] Failed to download or empty: $COLLECTION_ID"
+    # still create an empty file so the loop below can process it consistently
+    : > "$OUTPUT"
+  fi
+done < "$COLLECTION_FILE"
+
+# flatten and group by collection id
+for file in "$EXPORT_DIR"/*.json; do
+  [[ ! -e "$file" ]] && continue
+  COLLECTION_ID=$(basename "$file" .json)
+
+  # print collection id first
+  printf '%s\n' "$COLLECTION_ID" >> "$OUTPUT_FILE"
+
+  # print key=value lines (one per line) for that collection (if any)
+  jq -r '.. | objects | select(has("key") and has("value")) | "\(.key): \(.value)"' "$file" >> "$OUTPUT_FILE"
+
+  cat postman_flat.txt | grep -v -E '^(Date|uWebSockets:|X-RateLimit|Authorization: Bearer {{api_key}}|Last-Modified:|X-Powered-By:|Access-Control-Allow-Origin:|Access-Control-Expose-Headers:|Access-Control-Allow-Methods:|Access-Control-Allow-Credentials:|Access-Control-Allow-Headers:|syncTag: string|api-key: {{apiKey}}|content-type:|Content-Type|lineId: string|token: {{token}}|X-JOINT-API-KEY: {{X-JOINT-API-KEY}}|codecId: string|frame: null|stpi: {{stpi}}|X-JOINT-CREDENTIAL-ID: {{X-JOINT-CREDENTIAL-ID}}|Content-Length|instanceId: string|Authorization: Bearer: <string>|starttime|endtime|accept:|instanceId: 00000000-0000-0000-0000-000000000000|X-JOINT-CLIENT-ID: {{X-JOINT-CLIENT-ID}}|Authorization: Token {{api_token}}|key: string|timestamp|X-JOINT-CLIENT-SECRET: {{X-JOINT-CLIENT-SECRET}}|Connection|stps: {{stps}}|sec-fetch|Accept|format: geojson|sec-ch|licenseKey: string|instanceId: string|Transfer-Encoding|cameraid: string|Authorization: Bearer {{vault:json-web-token}}|X-XSS-Protection|ETag|foo|Vary: Accept-Encoding|access_key: {{accessKey}}|Authorization: Bearer <token>|areaId: string|eq-starttime:|eq-endtime:|Content-Encoding:|X-API-Key: {{token}}|startDate|endDate|workspace: {{workspaceId}}|Server:)' > flat.txt
+
+  # optional: add a newline separator between collections for readability
+  printf '\n' >> "$OUTPUT_FILE"
+done
+
+cat flat.txt >> issue.json
+cat flat.txt | notify -bulk
+rm *.txt
+rm postman_collections/*.json
+echo "[INFO] Done. Output in $OUTPUT_FILE" 
